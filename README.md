@@ -15,7 +15,7 @@ Lightweight, production‑shaped data engineering demo using **Azure Data Factor
 ---
 
 ## 🛠️ Architecture
-![Architecture](./Architecture%20Diagram.png)
+![Architecture](./docs/architecture_diagram.png)
 
 ## Stack
 - **Ingestion**: Azure Data Factory (ADF)  
