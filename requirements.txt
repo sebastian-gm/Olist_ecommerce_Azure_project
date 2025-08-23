@@ -2,3 +2,6 @@ pandas
 numpy
 mysql-connector-python
 pymongo
+pyspark~=3.5.1
+delta-spark~=3.2.0
+ipykernel
