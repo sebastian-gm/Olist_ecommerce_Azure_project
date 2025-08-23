@@ -1,83 +1,75 @@
 # End-to-End Data Engineering Pipeline on Azure
 
-## 📌 Overview
-This project demonstrates the design and implementation of a **modern data engineering pipeline** on **Azure**, showcasing skills in **data ingestion, transformation, orchestration, and visualization**.  
+## Overview
+Lightweight, production‑shaped data engineering demo using **Azure Data Factory** for ingestion, **ADLS Gen2** for storage, **Databricks** for ETL with **Delta Lake** (Bronze → Silver → Gold), and **Synapse serverless SQL** for serving.
 
-The pipeline ingests raw data from multiple sources (HTTP, GitHub, SQL, MongoDB), processes and transforms it using **Azure Databricks**, stores it in **layered data zones (Bronze, Silver, Gold)** on **Azure Data Lake Storage**, and finally makes it available in **Azure Synapse Analytics** for downstream consumption in **Power BI / Tableau / Fabric**.
 
-This project was developed as a portfolio piece to highlight **data engineering best practices** for handling structured and semi-structured data in the cloud.
+---
+
+## Executive Summary
+- Ingest Olist CSV files → Bronze (Delta, partitioned by date for `orders`).
+- Clean and standardize → Silver (dedupe, trim strings).
+- Publish a tiny Gold mart: **daily_orders**.
+- Query in Synapse via External Data Source + (example) CTAS/External Tables.
 
 ---
 
 ## 🛠️ Architecture
 ![Architecture](./Architecture%20Diagram.png)
 
-### Flow
-1. **Data Ingestion**  
-   - Data sources include:
-     - Public datasets via **HTTP / GitHub**
-     - Relational data from **SQL tables**
-     - Semi-structured data from **MongoDB** (for enrichment)  
-   - **Azure Data Factory** orchestrates ingestion into **ADLS Gen2**.
+## Stack
+- **Ingestion**: Azure Data Factory (ADF)  
+- **Storage**: ADLS Gen2 (`raw`, `curated` containers)  
+- **Compute**: Databricks (Spark + Delta Lake)  
+- **Serving**: Synapse serverless SQL (External Tables / CETAS)
 
-2. **Raw Zone (Bronze Layer)**  
-   - Landing zone for raw, unprocessed data.
-   - Maintains **data lineage** and ensures traceability.
+## Project Structure
+```
+Olist-Ecommerce-Azure-Project/
+  adf/
+  databricks/
+    00_setup.md
+    01_bronze_ingest.ipynb
+    02_silver_transform.ipynb
+    03_gold_marts.ipynb
+    utils.py
+  synapse/
+    external_objects.sql
+    gold_queries.sql
+  data-sample/
+    orders_sample.csv
+  docs/
+    architecture.png
+  .gitignore
+  README.md
+  requirements.txt
+```
 
-3. **Cleansed Zone (Silver Layer)**  
-   - Data is **transformed, joined, and validated** in **Azure Databricks (Spark)**.  
-   - Standardized schemas, deduplication, and enrichment using MongoDB data.
+## How to Run (Databricks)
+1. Create/attach a cluster (DBR 13.x+).  
+2. Open `databricks/01_bronze_ingest.ipynb`. Set widgets:
+   ```python
+   raw_base = "abfss://raw@<storage-account>.dfs.core.windows.net/olist"
+   curated_base = "abfss://curated@<storage-account>.dfs.core.windows.net/olist"
+   ```
+3. Ensure the Olist CSV files are present in `raw/` (or place small test files in `data-sample/` and adjust the path).  
+4. Run notebooks in order: **01 → 02 → 03**.  
+5. You should see a Delta table `gold.daily_orders` created at `curated/gold/daily_orders`.
 
-4. **Curated Zone (Gold Layer)**  
-   - Business-ready, aggregated tables optimized for analytics.  
-   - Data stored in **ADLS Gen2 Gold layer** and made available to **Azure Synapse Analytics**.
+## Minimal Data Quality
+- Bronze notebook asserts non‑empty loads.
+- Silver notebook ensures **no duplicate `order_id`** and trims string columns.
 
-5. **Data Warehouse & BI**  
-   - **Azure Synapse Analytics** (serverless SQL endpoint) enables BI tools to query curated data.  
-   - Connected to **Power BI**, **Tableau**, or **Microsoft Fabric** for visualization.
+## Synapse (Serverless) Setup
+1. Open `synapse/external_objects.sql`, set your `<storage-account>`, and run to create:
+   - `olist_ds` (External Data Source to ADLS Gen2 curated)
+   - `parquet_ff` (External File Format)
+2. Open `synapse/gold_queries.sql` and run to materialize `ext_gold_daily_orders` using **CETAS**‑style query.
 
----
+## Security & Secrets
+- Use **Azure Key Vault** or **Databricks Secret Scopes** for any JDBC user/password.
+- Use **Managed Identity** for Synapse to read ADLS Gen2.
 
-## 🚀 Technologies Used
-- **Azure Data Factory** – Orchestration & data ingestion  
-- **Azure Data Lake Storage Gen2 (ADLS)** – Layered data lake (Bronze/Silver/Gold)  
-- **Azure Databricks (Spark)** – Distributed transformations & enrichment  
-- **MongoDB** – External dataset for enrichment  
-- **MySQL** – Relational data source  
-- **Azure Synapse Analytics** – Data warehouse & SQL analytics layer  
-- **Power BI / Tableau / Fabric** – Visualization & reporting  
-
----
-
-## 📂 Data Layers
-- **Bronze Layer** – Raw ingestion (as-is from sources)  
-- **Silver Layer** – Cleaned, validated, transformed, and enriched data  
-- **Gold Layer** – Aggregated, curated datasets for BI & business consumption  
-
----
-
-## 🧑‍💻 Skills Demonstrated
-- End-to-end **data engineering pipeline design**  
-- **Orchestration** with Azure Data Factory  
-- **ETL / ELT transformations** with Databricks (Spark)  
-- **Data lakehouse architecture** (Bronze/Silver/Gold layers)  
-- **SQL + NoSQL integration** (MySQL, MongoDB)  
-- **Data warehouse modeling** in Synapse  
-- **Visualization integration** with BI tools  
-- Exposing curated data via **Synapse Serverless SQL endpoint**
-
----
-
-## 🔑 Why This Project Matters
-This project replicates what real data engineering teams do in production:
-- Designing **scalable, cloud-native pipelines**  
-- Integrating **multiple storage and processing technologies**  
-- Applying **best practices** in layered data architecture and enrichment  
-- Delivering **business-ready data** for analytics  
-
----
-
-## 📌 Next Steps
-- Add **CI/CD pipelines** (GitHub Actions / Azure DevOps) for Databricks jobs  
-- Implement **data quality checks** with Great Expectations  
-- Automate infrastructure setup with **Terraform**  
+## Notes
+- Keep only tiny samples in `data-sample/` for the repo. Link the full Olist dataset (Kaggle) in your GitHub description if desired.
+- This repo intentionally keeps transformations **simple** to signal solid DE shape without heavy frameworks.
