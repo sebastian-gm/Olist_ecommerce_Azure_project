@@ -1,0 +1,77 @@
+{
+  "name": "PL_Databricks_Bronze_Silver_Gold",
+  "properties": {
+    "parameters": {
+      "raw_base": {
+        "type": "String",
+        "defaultValue": "abfss://olistdata@olistecommdatastorage.dfs.core.windows.net/bronze"
+      },
+      "curated_base": {
+        "type": "String",
+        "defaultValue": "abfss://olistdata@olistecommdatastorage.dfs.core.windows.net/curated"
+      }
+    },
+    "activities": [
+      {
+        "name": "NB_01_Bronze_Batch",
+        "type": "DatabricksNotebook",
+        "dependsOn": [],
+        "typeProperties": {
+          "notebookPath": "/Repos/your-repo/databricks/01_bronze_ingest_batch",
+          "baseParameters": {
+            "raw_base": "@{pipeline().parameters.raw_base}",
+            "curated_base": "@{pipeline().parameters.curated_base}"
+          }
+        },
+        "linkedServiceName": {
+          "referenceName": "LS_Databricks",
+          "type": "LinkedServiceReference"
+        }
+      },
+      {
+        "name": "NB_02_Silver_Transform",
+        "type": "DatabricksNotebook",
+        "dependsOn": [
+          {
+            "activity": "NB_01_Bronze_Batch",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "notebookPath": "/Repos/your-repo/databricks/02_silver_transform",
+          "baseParameters": {
+            "curated_base": "@{pipeline().parameters.curated_base}"
+          }
+        },
+        "linkedServiceName": {
+          "referenceName": "LS_Databricks",
+          "type": "LinkedServiceReference"
+        }
+      },
+      {
+        "name": "NB_03_Gold_Marts",
+        "type": "DatabricksNotebook",
+        "dependsOn": [
+          {
+            "activity": "NB_02_Silver_Transform",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "notebookPath": "/Repos/your-repo/databricks/03_gold_marts",
+          "baseParameters": {
+            "curated_base": "@{pipeline().parameters.curated_base}"
+          }
+        },
+        "linkedServiceName": {
+          "referenceName": "LS_Databricks",
+          "type": "LinkedServiceReference"
+        }
+      }
+    ]
+  }
+}
